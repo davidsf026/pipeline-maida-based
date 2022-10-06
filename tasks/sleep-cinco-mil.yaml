@@ -1,0 +1,14 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: sleep-cinco-mil
+spec:
+  workspaces:
+  - name: main-workspace
+  steps:
+  - name: sleep-cinco-mil
+    image: alpine/git:v2.26.2
+    workingDir: /workspace/main-workspace
+    script: |
+      #!/usr/bin/env sh
+      sleep 5000

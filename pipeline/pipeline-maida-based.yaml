@@ -1,0 +1,48 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: pipeline-maida-based
+spec:
+
+  workspaces:
+  - name: main-workspace
+
+  params:
+    - name: APP_SOURCE_GIT
+      description: The application git repository
+      default: 'https://github.com/redhat-oraex/tekton-pipeline-demo-app'
+    - name: APP_SOURCE_BRANCH
+      type: string
+      default: ''
+
+  tasks:
+    - name: source-clone
+      taskRef:
+        kind: ClusterTask
+        name: git-clone
+      workspaces:
+        - name: output
+          workspace: main-workspace
+      params:
+        - name: url
+          value: $(params.APP_SOURCE_GIT)
+        - name: revision
+          value: "$(params.APP_SOURCE_BRANCH)"
+        - name: depth
+          value: '0'
+        - name: deleteExisting
+          value: 'true'
+        - name: sslVerify
+          value: 'false'
+        - name: subdirectory
+          value: './app-source-code'
+
+    - name: sleep-cinco-mil
+      taskRef:
+        name: sleep-cinco-mil
+        kind: Task
+      workspaces:
+      - name: main-workspace
+        workspace: main-workspace
+      runAfter:
+      - source-clone

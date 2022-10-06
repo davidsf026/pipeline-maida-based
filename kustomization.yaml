@@ -1,0 +1,7 @@
+resources:
+  - permissioning/secret.yaml
+  - permissioning/serviceaccount.yaml
+  - pipeline/pipeline.yaml
+  - tasks/build-and-push-image.yaml
+  - tasks/clone-git-repo.yaml
+  - tasks/maven-build-and-nexus-deploy.yaml
