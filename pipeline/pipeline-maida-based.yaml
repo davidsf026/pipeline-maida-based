@@ -6,6 +6,8 @@ spec:
 
   workspaces:
   - name: main-workspace
+  - name: maven-settings
+  - name: maven-local-repo
 
   params:
     - name: APP_SOURCE_GIT
@@ -14,15 +16,14 @@ spec:
     - name: APP_SOURCE_BRANCH
       type: string
       default: ''
+    - name: APP_CONTEXT_DIR
+      default: './app-source-code/helloworld'
 
   tasks:
     - name: source-clone
       taskRef:
         kind: ClusterTask
         name: git-clone
-      workspaces:
-        - name: output
-          workspace: main-workspace
       params:
         - name: url
           value: $(params.APP_SOURCE_GIT)
@@ -35,7 +36,60 @@ spec:
         - name: sslVerify
           value: 'false'
         - name: subdirectory
-          value: './app-source-code'
+          value: 'app-source-code'
+      workspaces:
+        - name: output
+          workspace: main-workspace
+
+    - name: unit-test
+      taskRef:
+        kind: Task
+        name: maven
+      params:    
+        - name: GOALS
+          value:
+            - '--batch-mode'
+            - test
+            - '-DskipTests=true'
+            - '-Denforcer.skip=true'
+        - name: PROXY_PROTOCOL
+          value: http
+        - name: CONTEXT_DIR
+          value: $(params.APP_CONTEXT_DIR)
+      workspaces:
+        - name: source
+          workspace: main-workspace
+        - name: maven-settings
+          workspace: maven-settings
+        - name: maven-local-repo
+          workspace: maven-local-repo
+      runAfter:
+        - source-clone
+
+    - name: code-analysis
+      params:
+        - name: GOALS
+          value:
+            - install
+            - 'sonar:sonar'
+            - '-Dsonar.host.url=http://sonarqube-sonarqube:9000'  
+            - '-Dsonar.userHome=/tmp/sonar'
+            - '-DskipTests=true'
+            - '-Denforcer.skip=true'
+        - name: CONTEXT_DIR
+          value: $(params.APP_CONTEXT_DIR)
+      runAfter:
+        - unit-test
+      taskRef:
+        kind: Task
+        name: maven
+      workspaces:
+        - name: source
+          workspace: main-workspace
+        - name: maven-settings
+          workspace: maven-settings
+        - name: maven-local-repo
+          workspace: maven-local-repo
 
     - name: sleep-cinco-mil
       taskRef:
@@ -45,4 +99,4 @@ spec:
       - name: main-workspace
         workspace: main-workspace
       runAfter:
-      - source-clone
+      - code-analysis
