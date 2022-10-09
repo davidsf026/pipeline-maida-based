@@ -1,0 +1,24 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  annotations:
+    tekton.dev/pipelines.minVersion: 0.12.1
+    tekton.dev/tags: git  
+  name: get-git-commit-info
+  labels:
+    app.kubernetes.io/version: '0.1'
+    operator.tekton.dev/provider-type: community
+spec:
+  workspaces:
+  - name: output
+  results:
+    - description: The hash of the commit
+      name: commit_hash
+  steps:
+    - name: getting-commit-informations
+      workingDir: $(workspaces.output.path)/app-source-code
+      image: 'docker.io/alpine/git:v2.26.2'
+      resources: {}
+      script: |
+        echo -n $(git rev-parse --short HEAD) > $(results.commit_hash.path)
+        echo COMMIT_HASH: $(cat $(echo $(results.commit_hash.path)))

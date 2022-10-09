@@ -1,0 +1,44 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  annotations:
+    tekton.dev/pipelines.minVersion: 0.12.1
+    tekton.dev/tags: git  
+  name: set-build-namespace
+  labels:
+    app.kubernetes.io/version: '0.1'
+    operator.tekton.dev/provider-type: community
+spec:
+  description: This Task can be used to set the namespace to run pipeline
+  params:
+    - name: APP_BRANCH
+      type: string              
+  results:
+    - description: The namespace where pipeline will running
+      name: ns
+    - description: The name of branch without special characters
+      name: clean_branch      
+  steps:              
+    - image: 'registry.redhat.io/rhel7-atomic:latest'
+      name: check-branch
+      resources: {}
+      script: |
+        #!/usr/bin/env bash
+        set -xe         
+        BRANCH=$(echo -n "$(params.APP_BRANCH)")
+        
+        if [ "$BRANCH" == "hotfix" ]
+        then
+          echo -n "oqss-fix" > $(results.ns.path)
+          echo -n "hotfix" > $(results.clean_branch.path)          
+        elif [ "$BRANCH" == "develop" ]         
+        then
+          echo -n "oqss-dev" > $(results.ns.path)
+          echo -n "develop" > $(results.clean_branch.path)
+        elif [ "$BRANCH" == "release" ]
+        then
+          echo -n "oqss-hom" > $(results.ns.path)
+          echo -n "release" > $(results.clean_branch.path)
+        else
+          echo "Branch undefined"
+        fi        

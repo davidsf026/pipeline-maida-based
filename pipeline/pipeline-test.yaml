@@ -1,0 +1,88 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: pipeline-maida-based
+spec:
+
+  workspaces:
+  - name: main-workspace
+
+  params:
+    - name: APP_SOURCE_GIT
+      description: The application git repository
+      default: 'http://gitea-david-tekton-pipeline.apps.middleware.rhbr-lab.com/gitea-admin/tekton-pipeline-demo-app'
+    - name: APP_SOURCE_BRANCH
+      type: string
+      default: 'develop'
+
+    - name: APP_MANIFESTS_GIT
+      type: string
+
+    - name: APP_CONTEXT_DIR
+      default: './app-source-code/helloworld'
+
+  tasks:
+    - name: source-clone
+      taskRef:
+        kind: ClusterTask
+        name: git-clone
+      params:
+        - name: url
+          value: $(params.APP_SOURCE_GIT)
+        - name: revision
+          value: "$(params.APP_SOURCE_BRANCH)"
+        - name: depth
+          value: '0'
+        - name: deleteExisting
+          value: 'true'
+        - name: sslVerify
+          value: 'false'
+        - name: subdirectory
+          value: 'app-source-code'
+      workspaces:
+        - name: output
+          workspace: main-workspace
+
+    - name: get-commit-info
+      taskRef:
+        kind: Task
+        name: get-git-commit-info
+      workspaces:
+        - name: output
+          workspace: main-workspace
+      runAfter:
+        - source-clone
+
+    - name: build-image
+      params:
+        - name: TLSVERIFY
+          value: 'false'
+        - name: IMAGE
+          value: >-
+            quay.io/dferreira/helloworld:$(tasks.get-commit-info.results.commit_hash)
+        - name: CONTEXT
+          value: './app-source-code/helloworld'
+      runAfter:
+        - get-commit-info
+      taskRef:
+        kind: ClusterTask
+        name: buildah
+      workspaces:
+        - name: source
+          workspace: main-workspace
+
+
+
+    - name: sleep-cinco-mil
+      taskRef:
+        name: sleep-cinco-mil
+        kind: Task
+      workspaces:
+        - name: source
+          workspace: main-workspace
+        - name: maven-settings
+          workspace: maven-settings
+        - name: maven-local-repo
+          workspace: maven-local-repo
+      runAfter:
+      - app-name

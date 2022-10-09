@@ -4,7 +4,9 @@ metadata:
   name: sleep-cinco-mil
 spec:
   workspaces:
-  - name: main-workspace
+  - name: source
+  - name: maven-settings
+  - name: maven-local-repo
   steps:
   - name: sleep-cinco-mil
     image: alpine/git:v2.26.2
