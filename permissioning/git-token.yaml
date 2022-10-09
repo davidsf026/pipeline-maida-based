@@ -1,0 +1,8 @@
+apiVersion: v1
+data:
+  token: YWRtaW4xMjM=
+  user: Z2l0ZWEtYWRtaW4=
+kind: Secret
+metadata:
+  name: git-token
+type: Opaque

@@ -1,0 +1,82 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  annotations:
+    tekton.dev/pipelines.minVersion: 0.12.1
+    tekton.dev/tags: git  
+  name: git-update-deployment
+  labels:
+    app.kubernetes.io/version: '0.1'
+    operator.tekton.dev/provider-type: community
+spec:
+  description: This Task can be used to update image digest in a Git repo using kustomize
+  params:
+    - name: GIT_REPOSITORY
+      type: string
+    - name: HASH_COMMIT
+      type: string
+  results:
+    - description: The commit SHA
+      name: commit
+  steps:      
+    - image: 'docker.io/alpine/git:v2.26.2'
+      name: git-clone
+      resources: {}
+      script: |
+        rm -fr git-update-tag-workdir
+        git -c http.sslVerify=false clone $(params.GIT_REPOSITORY) git-update-tag-workdir
+        
+      workingDir: $(workspaces.workspace.path)
+    - image: alpine    
+      name: update-digest
+      resources: {}
+      script: |   
+        cd git-update-tag-workdir 
+
+        # DEPLOY_FILE=$(grep "\- image:" * |grep "kind: Deployment" |awk -F":" '{print $1}')
+        DEPLOY_FILE=$(grep "kind: Deploy" * |awk -F":" '{print $1}')
+        LAST_IMAGE=$(grep "image:" $DEPLOY_FILE |awk -F":" '{print $3}' )
+        LI=$(echo -n $LAST_IMAGE)
+
+        sed -i "s/$LI/$(params.HASH_COMMIT)/g" $DEPLOY_FILE
+
+      workingDir: $(workspaces.workspace.path)
+    - image: 'docker.io/alpine/git:v2.26.2'
+      env:
+        - name: GIT_USER
+          valueFrom:
+            secretKeyRef:
+              name: git-token
+              key: user
+        - name: GIT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: git-token
+              key: token
+      name: git-commit
+      resources: {}
+      script: |
+        cd git-update-tag-workdir
+
+        git config user.email "pipelines-ci@redhat.com"
+        git config user.name "$GIT_USER"
+
+        # echo "Showing status git repo"
+        git status
+
+        echo "Executing git add"
+        git add .
+
+        echo "Executing git commit "        
+        git commit -m "[$(context.taskRun.name)] Image tag updated"             
+
+        echo "Add remote"    
+       
+        REPOSITORY=$(echo $(params.GIT_REPOSITORY) | sed -E "s#http://(.*)#http://$GIT_USER:$GIT_TOKEN@\1#g")
+        
+        # echo "Executing git push"
+        git -c http.sslVerify=false push $REPOSITORY
+      workingDir: $(workspaces.workspace.path)
+  workspaces:
+    - description: The workspace consisting of maven project.
+      name: workspace

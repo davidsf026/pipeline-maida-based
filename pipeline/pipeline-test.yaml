@@ -6,6 +6,9 @@ spec:
 
   workspaces:
   - name: main-workspace
+  - name: maven-settings
+  - name: maven-local-repo
+  - name: gitops-workspace
 
   params:
     - name: APP_SOURCE_GIT
@@ -17,10 +20,10 @@ spec:
 
     - name: APP_MANIFESTS_GIT
       type: string
+      default: 'http://gitea-david-tekton-pipeline.apps.middleware.rhbr-lab.com/gitea-admin/tekton-demo-app-manifests'
 
     - name: APP_CONTEXT_DIR
       default: './app-source-code/helloworld'
-
   tasks:
     - name: source-clone
       taskRef:
@@ -53,36 +56,17 @@ spec:
       runAfter:
         - source-clone
 
-    - name: build-image
-      params:
-        - name: TLSVERIFY
-          value: 'false'
-        - name: IMAGE
-          value: >-
-            quay.io/dferreira/helloworld:$(tasks.get-commit-info.results.commit_hash)
-        - name: CONTEXT
-          value: './app-source-code/helloworld'
+    - name: update-deployment
+      params:               
+        - name: GIT_REPOSITORY
+          value: $(params.APP_MANIFESTS_GIT)  
+        - name: HASH_COMMIT
+          value: $(tasks.get-commit-info.results.commit_hash)
       runAfter:
         - get-commit-info
       taskRef:
-        kind: ClusterTask
-        name: buildah
-      workspaces:
-        - name: source
-          workspace: main-workspace
-
-
-
-    - name: sleep-cinco-mil
-      taskRef:
-        name: sleep-cinco-mil
         kind: Task
+        name: git-update-deployment
       workspaces:
-        - name: source
-          workspace: main-workspace
-        - name: maven-settings
-          workspace: maven-settings
-        - name: maven-local-repo
-          workspace: maven-local-repo
-      runAfter:
-      - app-name
+        - name: workspace
+          workspace: gitops-workspace
