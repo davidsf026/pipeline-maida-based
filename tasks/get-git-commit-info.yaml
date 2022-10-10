@@ -9,16 +9,38 @@ metadata:
     app.kubernetes.io/version: '0.1'
     operator.tekton.dev/provider-type: community
 spec:
+  params:
+    - name: BRANCH
+      type: string
   workspaces:
   - name: output
   results:
-    - description: The hash of the commit
+    - description: The hash of the commit.
       name: commit_hash
+    - description: The namespace corresponding to the current branch.
+      name: branch_namespace
   steps:
     - name: getting-commit-informations
       workingDir: $(workspaces.output.path)/app-source-code
-      image: 'docker.io/alpine/git:v2.26.2'
+      image: 'docker.io/bitnami/git:2.38.0'
       resources: {}
       script: |
+        #!/bin/bash
+
+        git config --global --add safe.directory /workspace/output/app-source-code
+
         echo -n $(git rev-parse --short HEAD) > $(results.commit_hash.path)
         echo COMMIT_HASH: $(cat $(echo $(results.commit_hash.path)))
+
+        CURRENT_BRANCH=$(params.BRANCH)
+
+        if [[ $CURRENT_BRANCH == *"develop"* ]]; then
+          echo -n "oqss-dev" > $(results.branch_namespace.path)
+        elif [[ $CURRENT_BRANCH == *"release"* ]]; then
+          echo -n "oqss-hom" > $(results.branch_namespace.path)
+        else
+          echo "Branch undefined"
+          exit 1
+        fi
+
+        echo BRANCH_NAMESPACE: $(cat $(echo $(results.branch_namespace.path)))

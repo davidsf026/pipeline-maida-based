@@ -13,7 +13,9 @@ spec:
   params:
     - name: GIT_REPOSITORY
       type: string
-    - name: HASH_COMMIT
+    - name: COMMIT_HASH
+      type: string
+    - name: BRANCH_NAMESPACE
       type: string
   results:
     - description: The commit SHA
@@ -26,21 +28,21 @@ spec:
         rm -fr git-update-tag-workdir
         git -c http.sslVerify=false clone $(params.GIT_REPOSITORY) git-update-tag-workdir
         
-      workingDir: $(workspaces.workspace.path)
+      workingDir: $(workspaces.source.path)
     - image: alpine    
       name: update-digest
       resources: {}
       script: |   
-        cd git-update-tag-workdir 
+        cd git-update-tag-workdir/$(params.BRANCH_NAMESPACE)
 
         # DEPLOY_FILE=$(grep "\- image:" * |grep "kind: Deployment" |awk -F":" '{print $1}')
         DEPLOY_FILE=$(grep "kind: Deploy" * |awk -F":" '{print $1}')
         LAST_IMAGE=$(grep "image:" $DEPLOY_FILE |awk -F":" '{print $3}' )
         LI=$(echo -n $LAST_IMAGE)
 
-        sed -i "s/$LI/$(params.HASH_COMMIT)/g" $DEPLOY_FILE
+        sed -i "s/$LI/$(params.COMMIT_HASH)/g" $DEPLOY_FILE
 
-      workingDir: $(workspaces.workspace.path)
+      workingDir: $(workspaces.source.path)
     - image: 'docker.io/alpine/git:v2.26.2'
       env:
         - name: GIT_USER
@@ -68,15 +70,13 @@ spec:
         git add .
 
         echo "Executing git commit "        
-        git commit -m "[$(context.taskRun.name)] Image tag updated"             
-
-        echo "Add remote"    
+        git commit -m "[$(context.taskRun.name)] Image tag updated"
        
         REPOSITORY=$(echo $(params.GIT_REPOSITORY) | sed -E "s#http://(.*)#http://$GIT_USER:$GIT_TOKEN@\1#g")
         
         # echo "Executing git push"
         git -c http.sslVerify=false push $REPOSITORY
-      workingDir: $(workspaces.workspace.path)
+      workingDir: $(workspaces.source.path)
   workspaces:
     - description: The workspace consisting of maven project.
-      name: workspace
+      name: source

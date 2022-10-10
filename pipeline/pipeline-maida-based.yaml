@@ -13,14 +13,14 @@ spec:
   params:
     - name: APP_SOURCE_GIT
       description: The application git repository
-      default: 'http://gitea-david-tekton-pipeline.apps.middleware.rhbr-lab.com/gitea-admin/tekton-pipeline-demo-app'
+      default: 'http://gitea-oqss-cicd.apps.middleware.rhbr-lab.com/gitea-admin/tekton-pipeline-demo-app'
     - name: APP_SOURCE_BRANCH
       type: string
       default: 'develop'
 
     - name: APP_MANIFESTS_GIT
       type: string
-      default: 'http://gitea-david-tekton-pipeline.apps.middleware.rhbr-lab.com/gitea-admin/tekton-demo-app-manifests'
+      default: 'http://gitea-oqss-cicd.apps.middleware.rhbr-lab.com/gitea-admin/oqss-cnp-gitops'
 
     - name: APP_CONTEXT_DIR
       default: './app-source-code/helloworld'
@@ -50,6 +50,9 @@ spec:
       taskRef:
         kind: Task
         name: get-git-commit-info
+      params:
+        - name: BRANCH
+          value: $(params.APP_SOURCE_BRANCH)
       workspaces:
         - name: output
           workspace: main-workspace
@@ -173,27 +176,15 @@ spec:
       params:               
         - name: GIT_REPOSITORY
           value: $(params.APP_MANIFESTS_GIT)
-        - name: HASH_COMMIT
+        - name: COMMIT_HASH
           value: $(tasks.get-commit-info.results.commit_hash)
+        - name: BRANCH_NAMESPACE
+          value: $(tasks.get-commit-info.results.branch_namespace)
       runAfter:
         - build-image
       taskRef:
         kind: Task
         name: git-update-deployment
       workspaces:
-        - name: workspace
-          workspace: gitops-workspace
-
-    - name: sleep-cinco-mil
-      taskRef:
-        name: sleep-cinco-mil
-        kind: Task
-      workspaces:
         - name: source
-          workspace: main-workspace
-        - name: maven-settings
-          workspace: maven-settings
-        - name: maven-local-repo
-          workspace: maven-local-repo
-      runAfter:
-      - app-name
+          workspace: gitops-workspace

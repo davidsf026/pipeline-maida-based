@@ -1,0 +1,31 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: sleep-cinco-mil
+spec:
+  workspaces:
+  - name: source
+  - name: maven-settings
+  - name: maven-local-repo
+  steps:
+  - name: sleep-cinco-mil
+    image: alpine/git:v2.26.2
+    workingDir: /workspace/main-workspace
+    script: |
+      #!/usr/bin/env sh
+      sleep 5000
+
+
+    - name: sleep-cinco-mil
+      taskRef:
+        name: sleep-cinco-mil
+        kind: Task
+      workspaces:
+        - name: source
+          workspace: main-workspace
+        - name: maven-settings
+          workspace: maven-settings
+        - name: maven-local-repo
+          workspace: maven-local-repo
+      runAfter:
+      - app-name
